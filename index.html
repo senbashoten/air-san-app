@@ -521,7 +521,7 @@ function render(){
   Object.entries(groups)
   .map(([category,list])=>`
 
-    <details class="category" open>
+    <details class="category" ${category==="標準・撤去" ? "open" : ""}>
 
       <summary>
         ${esc(category)}
