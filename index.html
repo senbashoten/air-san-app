@@ -180,6 +180,79 @@ details.settings summary{
   font-size:30px;
   font-weight:950;
 }
+
+/* お客さん確認画面 */
+.customerModal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:100;
+  display:none;
+  padding:18px;
+  overflow:auto;
+}
+.customerModal.show{
+  display:block;
+}
+.customerSheet{
+  max-width:760px;
+  margin:20px auto;
+  background:#fff;
+  border-radius:20px;
+  padding:20px;
+  min-height:calc(100vh - 76px);
+}
+.customerTitle{
+  font-size:25px;
+  font-weight:950;
+  margin:0 0 4px;
+}
+.customerSub{
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:18px;
+}
+.customerRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:12px;
+  padding:14px 0;
+  border-bottom:1px solid var(--line);
+  align-items:center;
+}
+.customerName{
+  font-weight:850;
+  line-height:1.35;
+}
+.customerQty{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:4px;
+}
+.customerAmount{
+  font-weight:900;
+  white-space:nowrap;
+}
+.customerTotal{
+  margin-top:18px;
+  padding:16px;
+  border-radius:14px;
+  background:#eefafa;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.customerTotal strong{
+  font-size:28px;
+}
+.customerActions{
+  display:flex;
+  gap:8px;
+  margin-top:18px;
+}
+.customerActions button{
+  flex:1;
+}
 </style>
 </head>
 
@@ -198,6 +271,7 @@ details.settings summary{
 
 <div class="card">
   <strong>参考金額入りテンプレート</strong>
+
   <p class="notice">
     最初から参考金額が入っています。
     実際に使う前に、ご自身の料金表に合わせて変更してください。
@@ -208,6 +282,7 @@ details.settings summary{
     <button class="primary" id="openSettings">料金・項目を編集</button>
     <button id="reset">選択解除</button>
     <button id="copy">明細コピー</button>
+    <button id="showList">一覧表示</button>
   </div>
 </div>
 
@@ -238,19 +313,53 @@ details.settings summary{
 
 </main>
 
+<div id="customerModal" class="customerModal">
+
+  <div class="customerSheet">
+
+    <div class="customerTitle">
+      工事内容のご確認
+    </div>
+
+    <div class="customerSub">
+      選択した工事内容と合計金額をご確認ください。
+    </div>
+
+    <div id="customerList"></div>
+
+    <div class="customerTotal">
+      <span>税込合計</span>
+      <strong id="customerTotal">0円</strong>
+    </div>
+
+    <div class="customerActions">
+      <button id="closeList">戻る</button>
+    </div>
+
+  </div>
+
+</div>
+
 <div class="totalbar">
+
   <div class="totalinner">
+
     <div>
       <div class="notice">税込合計</div>
       <div class="total" id="total">0円</div>
     </div>
-    <button class="primary" id="reset2">クリア</button>
+
+    <button class="primary" id="reset2">
+      クリア
+    </button>
+
   </div>
+
 </div>
 
 <script>
 
-const KEY="airsan_beta_v1";
+const KEY="airsan_beta_v2";
 
 const DEFAULT_ITEMS=[
 
@@ -305,48 +414,80 @@ const DEFAULT_ITEMS=[
 ];
 
 function makeDefault(){
+
   return DEFAULT_ITEMS.map(x=>({
     ...x,
     qty:0,
     selected:false
   }));
+
 }
 
 let items=load();
 
 function load(){
+
   try{
-    const data=JSON.parse(localStorage.getItem(KEY));
-    if(Array.isArray(data) && data.length){
+
+    const data=JSON.parse(
+      localStorage.getItem(KEY)
+    );
+
+    if(
+      Array.isArray(data) &&
+      data.length
+    ){
+
       return data;
+
     }
+
   }catch(e){}
+
   return makeDefault();
+
 }
 
 function saveLocal(){
-  localStorage.setItem(KEY,JSON.stringify(items));
+
+  localStorage.setItem(
+    KEY,
+    JSON.stringify(items)
+  );
+
 }
 
 function yen(n){
-  return new Intl.NumberFormat("ja-JP").format(
+
+  return new Intl.NumberFormat(
+    "ja-JP"
+  ).format(
     Math.round(Number(n)||0)
   )+"円";
+
 }
 
 function esc(s){
-  return String(s).replace(/[&<>"']/g,c=>({
-    "&":"&amp;",
-    "<":"&lt;",
-    ">":"&gt;",
-    '"':"&quot;",
-    "'":"&#39;"
-  }[c]));
+
+  return String(s).replace(
+    /[&<>"']/g,
+    c=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[c])
+  );
+
 }
 
 function render(){
 
-  const search=document.getElementById("search").value
+  const search=
+    document
+    .getElementById("search")
+    .value
     .trim()
     .toLowerCase();
 
@@ -354,9 +495,14 @@ function render(){
 
   items.forEach((x,i)=>{
 
-    const text=(x.category+" "+x.name).toLowerCase();
+    const text=
+      (x.category+" "+x.name)
+      .toLowerCase();
 
-    if(search && !text.includes(search)){
+    if(
+      search &&
+      !text.includes(search)
+    ){
       return;
     }
 
@@ -368,12 +514,18 @@ function render(){
 
   });
 
-  document.getElementById("catalog").innerHTML=
-    Object.entries(groups).map(([category,list])=>`
+  document
+  .getElementById("catalog")
+  .innerHTML=
+
+  Object.entries(groups)
+  .map(([category,list])=>`
 
     <details class="category" open>
 
-      <summary>${esc(category)}</summary>
+      <summary>
+        ${esc(category)}
+      </summary>
 
       ${list.map(([x,i])=>`
 
@@ -386,10 +538,17 @@ function render(){
         >
 
         <div>
-          <div class="name">${esc(x.name)}</div>
-          <div class="meta">
-            ${yen(x.price)} / ${esc(x.unit)}
+
+          <div class="name">
+            ${esc(x.name)}
           </div>
+
+          <div class="meta">
+            ${yen(x.price)}
+            /
+            ${esc(x.unit)}
+          </div>
+
         </div>
 
         <input
@@ -403,12 +562,17 @@ function render(){
         >
 
         <div class="subtotal">
+
           小計
-          ${yen(
-            x.selected
-            ? (x.qty||0)*x.price
-            : 0
-          )}
+
+          ${
+            yen(
+              x.selected
+              ? (x.qty||0)*x.price
+              : 0
+            )
+          }
+
         </div>
 
       </div>
@@ -417,43 +581,64 @@ function render(){
 
     </details>
 
-    `).join("");
+  `).join("");
 
-  document.querySelectorAll("[data-check]").forEach(el=>{
+  document
+  .querySelectorAll("[data-check]")
+  .forEach(el=>{
 
     el.onchange=()=>{
 
-      const item=items[Number(el.dataset.check)];
+      const item=
+        items[
+          Number(el.dataset.check)
+        ];
 
-      item.selected=el.checked;
+      item.selected=
+        el.checked;
 
-      if(item.selected && !item.qty){
+      if(
+        item.selected &&
+        !item.qty
+      ){
+
         item.qty=1;
+
       }
 
       saveLocal();
+
       render();
 
     };
 
   });
 
-  document.querySelectorAll("[data-qty]").forEach(el=>{
+  document
+  .querySelectorAll("[data-qty]")
+  .forEach(el=>{
 
     el.onchange=()=>{
 
-      const item=items[Number(el.dataset.qty)];
+      const item=
+        items[
+          Number(el.dataset.qty)
+        ];
 
-      item.qty=Math.max(
-        0,
-        Number(el.value)||0
-      );
+      item.qty=
+        Math.max(
+          0,
+          Number(el.value)||0
+        );
 
       if(item.qty>0){
+
         item.selected=true;
+
       }
 
       saveLocal();
+
       render();
 
     };
@@ -461,29 +646,43 @@ function render(){
   });
 
   renderEdit();
+
   calc();
 
 }
 
 function calc(){
 
-  const total=items.reduce((sum,x)=>{
+  const total=
+    items.reduce(
+      (sum,x)=>{
 
-    if(!x.selected){
-      return sum;
-    }
+        if(!x.selected){
 
-    return sum+(Number(x.qty)||0)*(Number(x.price)||0);
+          return sum;
 
-  },0);
+        }
 
-  document.getElementById("total").textContent=yen(total);
+        return sum+
+          (Number(x.qty)||0)*
+          (Number(x.price)||0);
+
+      },
+      0
+    );
+
+  document
+  .getElementById("total")
+  .textContent=
+    yen(total);
 
 }
 
 function renderEdit(){
 
-  document.getElementById("edit").innerHTML=
+  document
+  .getElementById("edit")
+  .innerHTML=
 
   items.map((x,i)=>`
 
@@ -526,17 +725,30 @@ function renderEdit(){
 
   `).join("");
 
-  document.querySelectorAll("[data-delete]").forEach(btn=>{
+  document
+  .querySelectorAll("[data-delete]")
+  .forEach(btn=>{
 
     btn.onclick=()=>{
 
-      const index=Number(btn.dataset.delete);
+      const index=
+        Number(
+          btn.dataset.delete
+        );
 
-      if(confirm("この項目を削除しますか？")){
+      if(
+        confirm(
+          "この項目を削除しますか？"
+        )
+      ){
 
-        items.splice(index,1);
+        items.splice(
+          index,
+          1
+        );
 
         saveLocal();
+
         render();
 
       }
@@ -549,42 +761,74 @@ function renderEdit(){
 
 function saveEdits(){
 
-  document.querySelectorAll("[data-cat]").forEach(el=>{
-    items[Number(el.dataset.cat)].category=
-      el.value.trim()||"その他";
+  document
+  .querySelectorAll("[data-cat]")
+  .forEach(el=>{
+
+    items[
+      Number(el.dataset.cat)
+    ].category=
+      el.value.trim()||
+      "その他";
+
   });
 
-  document.querySelectorAll("[data-name]").forEach(el=>{
-    items[Number(el.dataset.name)].name=
-      el.value.trim()||"名称未設定";
+  document
+  .querySelectorAll("[data-name]")
+  .forEach(el=>{
+
+    items[
+      Number(el.dataset.name)
+    ].name=
+      el.value.trim()||
+      "名称未設定";
+
   });
 
-  document.querySelectorAll("[data-unit]").forEach(el=>{
-    items[Number(el.dataset.unit)].unit=
-      el.value.trim()||"個";
+  document
+  .querySelectorAll("[data-unit]")
+  .forEach(el=>{
+
+    items[
+      Number(el.dataset.unit)
+    ].unit=
+      el.value.trim()||
+      "個";
+
   });
 
-  document.querySelectorAll("[data-price]").forEach(el=>{
-    items[Number(el.dataset.price)].price=
+  document
+  .querySelectorAll("[data-price]")
+  .forEach(el=>{
+
+    items[
+      Number(el.dataset.price)
+    ].price=
       Math.max(
         0,
         Number(el.value)||0
       );
+
   });
 
   saveLocal();
 
   render();
 
-  alert("料金表を保存しました");
+  alert(
+    "料金表を保存しました"
+  );
 
 }
 
 function resetSelection(){
 
   items.forEach(x=>{
+
     x.selected=false;
+
     x.qty=0;
+
   });
 
   saveLocal();
@@ -593,9 +837,118 @@ function resetSelection(){
 
 }
 
-document.getElementById("openSettings").onclick=()=>{
+function showCustomerList(){
 
-  const box=document.getElementById("settingsBox");
+  const used=
+    items.filter(
+      x=>
+        x.selected &&
+        Number(x.qty)>0
+    );
+
+  if(!used.length){
+
+    alert(
+      "工事項目が選択されていません"
+    );
+
+    return;
+
+  }
+
+  const total=
+    used.reduce(
+      (sum,x)=>
+        sum+
+        (Number(x.qty)||0)*
+        (Number(x.price)||0),
+      0
+    );
+
+  document
+  .getElementById("customerList")
+  .innerHTML=
+
+    used.map(x=>`
+
+      <div class="customerRow">
+
+        <div>
+
+          <div class="customerName">
+            ${esc(x.name)}
+          </div>
+
+          <div class="customerQty">
+
+            ${x.qty}
+            ${esc(x.unit)}
+
+            ×
+
+            ${yen(x.price)}
+
+          </div>
+
+        </div>
+
+        <div class="customerAmount">
+
+          ${
+            yen(
+              (Number(x.qty)||0)*
+              (Number(x.price)||0)
+            )
+          }
+
+        </div>
+
+      </div>
+
+    `).join("");
+
+  document
+  .getElementById(
+    "customerTotal"
+  )
+  .textContent=
+    yen(total);
+
+  document
+  .getElementById(
+    "customerModal"
+  )
+  .classList
+  .add("show");
+
+  document.body.style.overflow=
+    "hidden";
+
+}
+
+function closeCustomerList(){
+
+  document
+  .getElementById(
+    "customerModal"
+  )
+  .classList
+  .remove("show");
+
+  document.body.style.overflow=
+    "";
+
+}
+
+document
+.getElementById("openSettings")
+.onclick=()=>{
+
+  const box=
+    document
+    .getElementById(
+      "settingsBox"
+    );
 
   box.open=true;
 
@@ -605,28 +958,46 @@ document.getElementById("openSettings").onclick=()=>{
 
 };
 
-document.getElementById("save").onclick=saveEdits;
+document
+.getElementById("save")
+.onclick=
+  saveEdits;
 
-document.getElementById("add").onclick=()=>{
+document
+.getElementById("add")
+.onclick=()=>{
 
   items.push({
+
     category:"その他",
+
     name:"新しい項目",
+
     price:0,
+
     unit:"個",
+
     qty:0,
+
     selected:false
+
   });
 
   saveLocal();
 
   render();
 
-  document.getElementById("settingsBox").open=true;
+  document
+  .getElementById(
+    "settingsBox"
+  )
+  .open=true;
 
 };
 
-document.getElementById("restore").onclick=()=>{
+document
+.getElementById("restore")
+.onclick=()=>{
 
   if(
     confirm(
@@ -634,7 +1005,8 @@ document.getElementById("restore").onclick=()=>{
     )
   ){
 
-    items=makeDefault();
+    items=
+      makeDefault();
 
     saveLocal();
 
@@ -644,36 +1016,76 @@ document.getElementById("restore").onclick=()=>{
 
 };
 
-document.getElementById("reset").onclick=resetSelection;
-document.getElementById("reset2").onclick=resetSelection;
+document
+.getElementById("reset")
+.onclick=
+  resetSelection;
 
-document.getElementById("search").oninput=render;
+document
+.getElementById("reset2")
+.onclick=
+  resetSelection;
 
-document.getElementById("copy").onclick=async()=>{
+document
+.getElementById("search")
+.oninput=
+  render;
 
-  const used=items.filter(
-    x=>x.selected && x.qty>0
-  );
+document
+.getElementById("showList")
+.onclick=
+  showCustomerList;
 
-  const total=used.reduce(
-    (sum,x)=>sum+x.qty*x.price,
-    0
-  );
+document
+.getElementById("closeList")
+.onclick=
+  closeCustomerList;
 
-  const lines=used.map(x=>
-    `${x.name}：${x.qty}${x.unit} × ${yen(x.price)} ＝ ${yen(x.qty*x.price)}`
-  );
+document
+.getElementById("copy")
+.onclick=
+async()=>{
+
+  const used=
+    items.filter(
+      x=>
+        x.selected &&
+        x.qty>0
+    );
+
+  const total=
+    used.reduce(
+      (sum,x)=>
+        sum+
+        x.qty*x.price,
+      0
+    );
+
+  const lines=
+    used.map(x=>
+
+      `${x.name}：${x.qty}${x.unit} × ${yen(x.price)} ＝ ${yen(x.qty*x.price)}`
+
+    );
 
   lines.push("");
-  lines.push(`合計：${yen(total)}`);
 
-  const text=lines.join("\n");
+  lines.push(
+    `合計：${yen(total)}`
+  );
+
+  const text=
+    lines.join("\n");
 
   try{
 
-    await navigator.clipboard.writeText(text);
+    await navigator
+      .clipboard
+      .writeText(text);
 
-    alert("明細をコピーしました");
+    alert(
+      "明細をコピーしました"
+    );
 
   }catch(e){
 
